@@ -3,12 +3,13 @@ import type {
     AppointmentApplyReq,
     AppointmentAuditReq,
     AppointmentDetailVO,
-    ScheduleVO
+    ScheduleVO,
+    PageResult
 } from '@/types/entity'
 
 // 学生端接口
 export const getStudentAppointments = (params: any) => {
-    return request<AppointmentDetailVO>({
+    return request<PageResult<AppointmentDetailVO>>({
         url: '/appointment/student/list',
         method: 'get',
         params
@@ -32,7 +33,7 @@ export const cancelAppointment = (id: number) => {
 
 // 管理端接口
 export const getAdminAppointments = (params: any) => {
-    return request<any>({ // PageResult
+    return request<PageResult<AppointmentDetailVO>>({
         url: '/appointment/admin/list',
         method: 'get',
         params
@@ -48,7 +49,7 @@ export const auditAppointment = (data: AppointmentAuditReq) => {
 }
 
 export const getSchedules = (params: any) => {
-    return request<ScheduleVO>({
+    return request<ScheduleVO[]>({
         url: '/appointment/schedule/list',
         method: 'get',
         params

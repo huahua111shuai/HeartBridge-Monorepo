@@ -40,7 +40,7 @@
       <el-dropdown trigger="click" popper-class="apple-dropdown">
         <div class="flex items-center gap-3 cursor-pointer">
           <div class="text-right hidden sm:block">
-            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ userStore.userInfo?.nickname }}</p>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ userStore.userInfo?.nickname || '管理员' }}</p>
             <p class="text-xs text-gray-500">{{ roleName }}</p>
           </div>
           <el-avatar :size="36" :src="userStore.userInfo?.avatar" class="border-2 border-white dark:border-white/10 shadow-sm" />
@@ -79,9 +79,7 @@ const roleName = computed(() => {
     admin: '超级管理员',
     counselor: '心理咨询师'
   }
-  return roleMap |
-
-      | '管理员'
+  return roleMap[userStore.role] || '管理员'
 })
 
 const handleLogout = async () => {

@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
+import { register } from '@/api/auth'; // 直接使用 API 或 Store
 import type { FormInstance, FormRules } from 'element-plus';
 import { ElMessage } from 'element-plus';
 import { User, Lock, School, Back } from '@element-plus/icons-vue';
 
 const router = useRouter();
-const authStore = useAuthStore();
 const regFormRef = ref<FormInstance>();
+const loading = ref(false);
 
-// --- 表单数据 ---
 const regForm = reactive({
   studentId: '',
   name: '',
@@ -19,25 +18,10 @@ const regForm = reactive({
   confirmPassword: ''
 });
 
-// --- 自定义验证器 ---
-// 1. 学号验证：必须为 8-12 位数字
-const validateStudentId = (rule: any, value: string, callback: any) => {
-  if (!value) {
-    return callback(new Error('请输入学号'));
-  }
-  const regex = /^\d{8,12}$/;
-  if (!regex.test(value)) {
-    callback(new Error('学号格式错误（8-12位数字）'));
-  } else {
-    callback();
-  }
-};
-
-// 2. 密码确认验证
 const validateConfirmPass = (rule: any, value: string, callback: any) => {
   if (value === '') {
     callback(new Error('请再次输入密码'));
-  } else if (value!== regForm.password) {
+  } else if (value !== regForm.password) {
     callback(new Error('两次输入密码不一致'));
   } else {
     callback();
@@ -45,7 +29,10 @@ const validateConfirmPass = (rule: any, value: string, callback: any) => {
 };
 
 const rules = reactive<FormRules>({
-  studentId:,
+  studentId: [
+    { required: true, message: '请输入学号', trigger: 'blur' },
+    { pattern: /^\d{8,12}$/, message: '学号格式错误（8-12位数字）', trigger: 'blur' }
+  ],
   name: [{ required: true, message: '请输入真实姓名', trigger: 'blur' }],
   department: [{ required: true, message: '请输入所属院系', trigger: 'blur' }],
   password: [
@@ -55,15 +42,24 @@ const rules = reactive<FormRules>({
   confirmPassword: [{ validator: validateConfirmPass, trigger: 'blur' }]
 });
 
-// --- 提交逻辑 ---
 const handleRegister = async (formEl: FormInstance | undefined) => {
   if (!formEl) return;
   await formEl.validate(async (valid) => {
     if (valid) {
-      const success = await authStore.register(regForm);
-      if (success) {
+      loading.value = true;
+      try {
+        await register({
+          studentId: regForm.studentId,
+          name: regForm.name,
+          department: regForm.department,
+          password: regForm.password
+        });
         ElMessage.success('注册成功，请登录');
         router.push('/auth/login');
+      } catch (e) {
+        // error handled by interceptor
+      } finally {
+        loading.value = false;
       }
     }
   });
@@ -145,7 +141,7 @@ const goBack = () => router.push('/auth/login');
         <el-button
             type="primary"
             class="submit-btn"
-            :loading="authStore.isLoading"
+            :loading="loading"
             @click="handleRegister(regFormRef)"
         >
           立即注册
@@ -156,9 +152,39 @@ const goBack = () => router.push('/auth/login');
 </template>
 
 <style scoped lang="scss">
-@import '@/styles/ios-theme.scss'; // 假设有一个共享的样式文件
+/* 复用 Login.vue 样式并增加/覆盖 */
+.auth-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #F2F2F7;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
 
-// 复用 Login.vue 中的大部分样式，此处仅展示差异部分
+.ambient-background {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 0;
+  filter: blur(80px);
+  opacity: 0.8;
+}
+
+.glass-panel {
+  position: relative;
+  z-index: 10;
+  width: 90%;
+  max-width: 420px;
+  padding: 32px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+}
 
 .nav-header {
   display: flex;
@@ -184,7 +210,7 @@ const goBack = () => router.push('/auth/login');
     color: #000;
   }
 
-  .placeholder { width: 40px; } // 占位保持标题居中
+  .placeholder { width: 40px; }
 }
 
 .description {
@@ -205,7 +231,6 @@ const goBack = () => router.push('/auth/login');
   justify-content: space-between;
 }
 
-// 覆盖 Label 样式，模仿 iOS Section Header
 :deep(.el-form-item__label) {
   text-transform: uppercase;
   font-size: 12px;
@@ -215,9 +240,29 @@ const goBack = () => router.push('/auth/login');
   font-weight: 500;
 }
 
-// 调整注册页的背景色球，使其略有不同
+.submit-btn {
+  width: 100%;
+  height: 48px;
+  border-radius: 12px;
+  background-color: #007AFF;
+  border: none;
+  margin-top: 16px;
+  font-weight: 600;
+  &:hover { background-color: #0062cc; }
+}
+
 .orb-reg-1 {
+  width: 40vw; height: 40vw;
+  position: absolute;
+  border-radius: 50%;
   background: radial-gradient(circle, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
   top: -20%; right: -10%;
+}
+.orb-reg-2 {
+  width: 50vw; height: 50vw;
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, #a18cd1 0%, #fbc2eb 100%);
+  bottom: -20%; left: -20%;
 }
 </style>

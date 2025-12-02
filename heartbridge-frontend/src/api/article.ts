@@ -1,15 +1,15 @@
 import request from '@/utils/request'
-import type { ArticleVO, ArticlePublishReq } from '@/types/entity'
+import type { ArticleVO, ArticlePublishReq, PageResult } from '@/types/entity'
 
 export const getArticlePage = (params: any) => {
-    return request<{ records: ArticleVO, total: number }>({
+    return request<PageResult<ArticleVO>>({
         url: '/content/article/page',
         method: 'get',
         params
     })
 }
 
-export const getArticleDetail = (id: string) => {
+export const getArticleDetail = (id: string | number) => {
     return request<ArticleVO>({
         url: `/content/article/${id}`,
         method: 'get'

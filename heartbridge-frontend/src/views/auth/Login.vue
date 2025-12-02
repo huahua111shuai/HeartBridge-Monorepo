@@ -1,24 +1,23 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore, type UserRole } from '@/stores/auth';
+import { useRouter, useRoute } from 'vue-router';
+import { useUserStore } from '@/store/user';
 import { User, Lock, ArrowRight } from '@element-plus/icons-vue';
 import type { FormInstance, FormRules } from 'element-plus';
+import { ElMessage } from 'element-plus';
 
-// --- 路由与状态初始化 ---
 const router = useRouter();
-const authStore = useAuthStore();
+const route = useRoute();
+const userStore = useUserStore();
 const loginFormRef = ref<FormInstance>();
 
-// --- 响应式数据 ---
-const currentRole = ref<UserRole>('student'); // 默认为学生
+const currentRole = ref<'student' | 'employee'>('student');
 const form = reactive({
   id: '',
   password: '',
   remember: false
 });
 
-// --- 表单验证规则 ---
 const rules = reactive<FormRules>({
   id: [
     { required: true, message: '请输入账号', trigger: 'blur' },
@@ -29,39 +28,50 @@ const rules = reactive<FormRules>({
   ]
 });
 
-// --- 生命周期钩子 ---
 onMounted(() => {
-  // 如果有记住的账号，自动填充
-  if (authStore.savedId) {
-    form.id = authStore.savedId;
+  // 模拟从本地存储读取记住的账号 (实际需在 store 或 localStorage 实现)
+  const savedId = localStorage.getItem('saved_uid');
+  if (savedId) {
+    form.id = savedId;
     form.remember = true;
   }
 });
 
-// --- 交互逻辑 ---
-const handleRoleChange = (role: UserRole) => {
+const handleRoleChange = (role: 'student' | 'employee') => {
   currentRole.value = role;
-  // 切换角色时，清空密码，保留账号（如果用户只是切错了）或者也清空
-  // 为了体验，此处不清空账号，但修改 placeholder
 };
 
 const handleLogin = async (formEl: FormInstance | undefined) => {
   if (!formEl) return;
 
-  // 触发 Element Plus 验证
   await formEl.validate(async (valid) => {
     if (valid) {
-      const success = await authStore.login(
-          form.id,
-          form.password,
-          currentRole.value,
-          form.remember
-      );
+      try {
+        const success = await userStore.login({
+          username: form.id,
+          password: form.password,
+          role: currentRole.value === 'employee' ? 'admin' : 'student', // 简单映射
+          remember: form.remember
+        });
 
-      if (success) {
-        router.push('/dashboard'); // 登录成功跳转
-      } else {
-        // 可以在此处触发卡片抖动动画
+        if (success) {
+          if (form.remember) {
+            localStorage.setItem('saved_uid', form.id);
+          } else {
+            localStorage.removeItem('saved_uid');
+          }
+
+          ElMessage.success('登录成功');
+          const redirect = route.query.redirect as string;
+          // 根据角色跳转
+          if (redirect) {
+            router.push(redirect);
+          } else {
+            router.push(userStore.role === 'admin' ? '/admin/dashboard/workbench' : '/student/home');
+          }
+        }
+      } catch (e) {
+        // 错误已在 request.ts 处理
       }
     }
   });
@@ -81,7 +91,6 @@ const goToRegister = () => {
     </div>
 
     <div class="glass-panel ios-spring-entrance">
-
       <div class="header">
         <h1 class="title">Campus Portal</h1>
         <p class="subtitle">Sign in to access your dashboard</p>
@@ -90,7 +99,7 @@ const goToRegister = () => {
       <div class="segmented-control">
         <div
             class="slider"
-            :style="{ transform: currentRole === 'student'? 'translateX(0)' : 'translateX(100%)' }"
+            :style="{ transform: currentRole === 'student' ? 'translateX(0)' : 'translateX(100%)' }"
         ></div>
         <button
             class="segment-btn"
@@ -118,7 +127,7 @@ const goToRegister = () => {
         <el-form-item prop="id">
           <el-input
               v-model="form.id"
-              :placeholder="currentRole === 'student'? '请输入学号' : '请输入工号'"
+              :placeholder="currentRole === 'student' ? '请输入学号' : '请输入工号'"
               class="ios-input"
           >
             <template #prefix>
@@ -151,7 +160,6 @@ const goToRegister = () => {
         <el-button
             type="primary"
             class="submit-btn"
-            :loading="authStore.isLoading"
             @click="handleLogin(loginFormRef)"
         >
           登 录
@@ -169,10 +177,8 @@ const goToRegister = () => {
 </template>
 
 <style scoped lang="scss">
-/* 引入 Google Fonts 以匹配系统字体 */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import '@/assets/css/variables.css'; /* 假设有此文件或移除此行 */
 
-// --- 布局容器 ---
 .auth-container {
   position: relative;
   width: 100vw;
@@ -180,17 +186,15 @@ const goToRegister = () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #F2F2F7; // iOS Light Background Color
+  background-color: #F2F2F7;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-// --- 呼吸背景动画 ---
 .ambient-background {
   position: absolute;
   top: 0; left: 0; width: 100%; height: 100%;
   z-index: 0;
-  // 关键：对背景层应用模糊，模拟景深
   filter: blur(80px);
   opacity: 0.8;
 }
@@ -227,28 +231,20 @@ const goToRegister = () => {
   100% { transform: translate(-20px, 20px) scale(0.95); }
 }
 
-// --- 毛玻璃卡片 ---
 .glass-panel {
   position: relative;
   z-index: 10;
   width: 90%;
   max-width: 420px;
   padding: 40px 32px;
-
-  // 核心 Glassmorphism 样式
-  background: rgba(255, 255, 255, 0.75); // 提高不透明度以适配浅色背景
+  background: rgba(255, 255, 255, 0.75);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
-
   border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow:
-      0 4px 6px -1px rgba(0, 0, 0, 0.05),
-      0 10px 15px -3px rgba(0, 0, 0, 0.05),
-      0 25px 50px -12px rgba(0, 0, 0, 0.1); // 深层弥散投影
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 25px 50px -12px rgba(0, 0, 0, 0.1);
 }
 
-// --- 弹簧入场动画 ---
 .ios-spring-entrance {
   animation: spring-up 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
   opacity: 0;
@@ -262,7 +258,6 @@ const goToRegister = () => {
   }
 }
 
-// --- 文本样式 ---
 .header {
   text-align: center;
   margin-bottom: 32px;
@@ -282,10 +277,9 @@ const goToRegister = () => {
   }
 }
 
-// --- 分段控制器 ---
 .segmented-control {
   position: relative;
-  background: rgba(118, 118, 128, 0.12); // iOS Segmented Control Background
+  background: rgba(118, 118, 128, 0.12);
   border-radius: 9px;
   padding: 2px;
   display: flex;
@@ -299,7 +293,7 @@ const goToRegister = () => {
     height: 32px;
     background: #fff;
     border-radius: 7px;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 3px 1px rgba(0, 0, 0, 0.04); // iOS Shadow
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 3px 1px rgba(0, 0, 0, 0.04);
     transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
     z-index: 1;
   }
@@ -322,18 +316,15 @@ const goToRegister = () => {
   }
 }
 
-// --- Element Plus 组件深度定制 ---
-// 1. 输入框
 :deep(.ios-input.el-input__wrapper) {
-  background-color: rgba(118, 118, 128, 0.08)!important; // System Gray 6
-  box-shadow: none!important; // 移除默认边框
+  background-color: rgba(118, 118, 128, 0.08)!important;
+  box-shadow: none!important;
   border-radius: 12px;
   padding: 4px 12px;
   transition: background-color 0.2s;
 
   &.is-focus {
     background-color: #fff!important;
-    // 使用微弱的蓝色光环代替强硬边框
     box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.15)!important;
   }
 }
@@ -344,14 +335,13 @@ const goToRegister = () => {
   color: #1c1c1e;
 }
 
-// 2. 按钮
 .submit-btn {
   width: 100%;
   height: 48px;
   border-radius: 12px;
   font-size: 17px;
   font-weight: 600;
-  background-color: #007AFF; // System Blue
+  background-color: #007AFF;
   border: none;
   margin-top: 16px;
   transition: transform 0.1s;
@@ -362,11 +352,10 @@ const goToRegister = () => {
   }
 
   &:active {
-    transform: scale(0.96); // 模拟按压物理反馈
+    transform: scale(0.96);
   }
 }
 
-// 3. 复选框
 :deep(.ios-checkbox.el-checkbox__inner) {
   border-radius: 4px;
 }

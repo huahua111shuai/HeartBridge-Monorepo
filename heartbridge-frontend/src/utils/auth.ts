@@ -1,9 +1,6 @@
-import { useStorage } from '@vueuse/core'
-
 const TokenKey = 'heartbridge-token'
 
-// Using VueUse's useStorage for reactive local storage, but wrapped for static access
-export const getToken = () => {
+export const getToken = (): string | null => {
     return localStorage.getItem(TokenKey)
 }
 

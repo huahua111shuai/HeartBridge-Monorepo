@@ -29,9 +29,7 @@
 
         <el-dropdown trigger="click" popper-class="apple-dropdown">
           <div class="flex items-center gap-2 cursor-pointer pl-2 py-1 pr-1 rounded-full hover:bg-gray-100/50 dark:hover:bg-white/5 transition-colors">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-200 hidden sm:block">{{ userStore.userInfo?.nickname |
-
-                | '同学' }}</span>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-200 hidden sm:block">{{ userStore.userInfo?.nickname || userStore.userInfo?.name || '同学' }}</span>
             <el-avatar :size="32" :src="userStore.userInfo?.avatar" class="border border-gray-200 dark:border-white/10" />
           </div>
           <template #dropdown>
@@ -90,7 +88,7 @@ const handleLogout = async () => {
   background: rgba(30, 30, 30, 0.8)!important;
   border-color: rgba(255,255,255,0.1)!important;
 }
-.apple-dropdown.el-dropdown-menu__item {
+.apple-dropdown .el-dropdown-menu__item {
   border-radius: 8px;
   padding: 8px 12px;
   margin-bottom: 2px;

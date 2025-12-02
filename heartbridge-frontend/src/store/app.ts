@@ -1,8 +1,4 @@
-import { createPinia } from 'pinia'
-
-const store = createPinia()
-
-export default storeimport { defineStore } from 'pinia'
+import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useDark, useToggle } from '@vueuse/core'
 
@@ -12,7 +8,7 @@ export const useAppStore = defineStore('app', () => {
     const sidebarOpen = ref(true)
 
     const toggleSidebar = () => {
-        sidebarOpen.value =!sidebarOpen.value
+        sidebarOpen.value = !sidebarOpen.value
     }
 
     return {

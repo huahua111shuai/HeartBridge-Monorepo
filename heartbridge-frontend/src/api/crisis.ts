@@ -1,8 +1,8 @@
 import request from '@/utils/request'
-import type { CrisisAlertVO, CrisisReportReq, InterventionLogReq } from '@/types/entity'
+import type { CrisisAlertVO, CrisisReportReq, InterventionLogReq, PageResult } from '@/types/entity'
 
 export const getAlertList = (params: any) => {
-    return request<CrisisAlertVO>({
+    return request<PageResult<CrisisAlertVO>>({
         url: '/crisis/alert/list',
         method: 'get',
         params

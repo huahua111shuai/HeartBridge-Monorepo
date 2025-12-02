@@ -43,7 +43,7 @@
               <div class="provider-main">
                 <div class="avatar-wrapper">
                   <el-avatar :size="70" :src="provider.avatar" />
-                  <span class="status-dot" :class="provider.available? 'online' : 'offline'"></span>
+                  <span class="status-dot" :class="provider.available ? 'online' : 'offline'"></span>
                 </div>
                 <div class="provider-details">
                   <h3 class="name">{{ provider.name }}</h3>
@@ -110,7 +110,7 @@
         <section v-else-if="currentStep === 2" class="step-content confirmation-step" key="step3">
           <div class="summary-box">
             <div class="summary-header">
-              <el-icon class="confirm-icon"><cal-check /></el-icon>
+              <el-icon class="confirm-icon"><Check /></el-icon>
               <h3>请核对预约信息</h3>
             </div>
 
@@ -158,7 +158,7 @@
             :disabled="!canProceed"
             :loading="isSubmitting"
         >
-          {{ currentStep === 2? '确认预约' : '下一步' }}
+          {{ currentStep === 2 ? '确认预约' : '下一步' }}
         </el-button>
       </div>
     </div>
@@ -170,15 +170,14 @@ import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Search, User, Calendar, Check, ArrowRight, ArrowLeft, Microphone } from '@element-plus/icons-vue';
+import { createAppointment } from '@/api/appointment';
 
-// --- 状态管理 ---
 const router = useRouter();
 const currentStep = ref(0);
 const searchQuery = ref('');
-const selectedTags = ref<string>();
+const selectedTags = ref<string[]>([]);
 const commonTags = ['焦虑', '抑郁', '人际关系', '学业压力', '自我探索'];
 
-// 选中的数据
 const selectedProvider = ref<any>(null);
 const selectedDate = ref(new Date());
 const selectedSlot = ref<string | null>(null);
@@ -186,28 +185,23 @@ const visitReason = ref('');
 const hasConsented = ref(false);
 const isSubmitting = ref(false);
 
-// 模拟数据源
-const providers =, languages: ['普通话', 'English'],
+const providers = [
+  {
+    id: 1, name: '陈博士', title: '临床心理学家',
+    skills: ['焦虑', '抑郁'], languages: ['普通话', 'English'],
     avatar: 'https://via.placeholder.com/150', nextSlot: '明日 14:00', available: true
-},
-{
-  id: 2, name: '李老师', title: '资深咨询师',
+  },
+  {
+    id: 2, name: '李老师', title: '资深咨询师',
     skills: ['人际关系', '家庭治疗'], languages: ['普通话', '粤语'],
     avatar: 'https://via.placeholder.com/150', nextSlot: '11月20日', available: true
-}
+  }
 ];
 
-// --- 逻辑处理 ---
-
-// 1. 筛选逻辑
 const filteredProviders = computed(() => {
   return providers.filter(p => {
-    const matchesSearch = p.name.includes(searchQuery.value) |
-
-        | p.skills.some(s => s.includes(searchQuery.value));
-    const matchesTags = selectedTags.value.length === 0 |
-
-        | selectedTags.value.some(tag => p.skills.includes(tag));
+    const matchesSearch = p.name.includes(searchQuery.value) || p.skills.some(s => s.includes(searchQuery.value));
+    const matchesTags = selectedTags.value.length === 0 || selectedTags.value.some(tag => p.skills.includes(tag));
     return matchesSearch && matchesTags;
   });
 });
@@ -222,37 +216,31 @@ const selectProvider = (provider: any) => {
   selectedProvider.value = provider;
 };
 
-// 2. 日历与时段逻辑
 const isLoadingSlots = ref(false);
-const availableSlots = ref<{time: string}>();
+const availableSlots = ref<{time: string}[]>([]);
 
-// 监听日期变化，模拟获取时段
 watch(selectedDate, (newVal) => {
   isLoadingSlots.value = true;
   selectedSlot.value = null;
-  // 模拟网络延迟
   setTimeout(() => {
-    // 随机生成时段
     availableSlots.value = Math.random() > 0.3
         ? [{time: '09:00'}, {time: '10:30'}, {time: '14:00'}, {time: '16:30'}]
-        :;
+        : [];
     isLoadingSlots.value = false;
   }, 600);
 });
 
 const hasSlots = (dayStr: string) => {
-  // 简单的伪随机逻辑用于展示UI
-  return parseInt(dayStr.split('-').pop()!) % 3!== 0;
+  return parseInt(dayStr.split('-').pop()!) % 3 !== 0;
 };
 
 const selectSlot = (time: string) => {
   selectedSlot.value = time;
 };
 
-// 3. 步骤控制
 const canProceed = computed(() => {
-  if (currentStep.value === 0) return!!selectedProvider.value;
-  if (currentStep.value === 1) return!!selectedSlot.value;
+  if (currentStep.value === 0) return !!selectedProvider.value;
+  if (currentStep.value === 1) return !!selectedSlot.value;
   if (currentStep.value === 2) return hasConsented.value;
   return false;
 });
@@ -267,27 +255,31 @@ const handleNext = () => {
   }
 };
 
-const submitBooking = () => {
+const submitBooking = async () => {
   isSubmitting.value = true;
-  // 模拟提交
-  setTimeout(() => {
-    isSubmitting.value = false;
-    ElMessage.success({
-      message: '预约成功！请在“我的记录”中查看详情。',
-      duration: 3000
+  try {
+    await createAppointment({
+      providerId: selectedProvider.value.id,
+      date: selectedDate.value.toISOString(),
+      timeSlot: selectedSlot.value!,
+      type: 'online',
+      reason: visitReason.value
     });
+    ElMessage.success('预约成功！请在“我的记录”中查看详情。');
     router.push('/student/appointment/history');
-  }, 1500);
+  } catch (error) {
+    // error handled
+  } finally {
+    isSubmitting.value = false;
+  }
 };
 
-// 工具函数
 const formatDate = (date: Date) => {
   return new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }).format(date);
 };
 </script>
 
 <style scoped>
-/* Booking Page Layout */
 .booking-page {
   max-width: 1000px;
   margin: 0 auto;
@@ -309,12 +301,10 @@ const formatDate = (date: Date) => {
 .page-title { margin-bottom: 30px; color: #303133; }
 .custom-steps { max-width: 800px; margin: 0 auto; background: transparent; }
 
-/* Filter Styles */
 .filter-bar { margin-bottom: 24px; }
 .search-input { margin-bottom: 16px; }
 .filter-tags { display: flex; gap: 12px; flex-wrap: wrap; }
 
-/* Provider Card */
 .provider-card {
   display: flex;
   justify-content: space-between;
@@ -342,7 +332,6 @@ const formatDate = (date: Date) => {
 
 .provider-availability { text-align: right; color: #909399; font-size: 13px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 
-/* Calendar & Slots */
 .schedule-layout { display: grid; grid-template-columns: 1.5fr 1fr; gap: 32px; }
 .slots-panel { background: #fafafa; padding: 24px; border-radius: 16px; }
 .slots-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 20px; }
@@ -362,18 +351,15 @@ const formatDate = (date: Date) => {
 .custom-date-cell { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
 .dot { width: 6px; height: 6px; background: #409eff; border-radius: 50%; margin-top: 4px; }
 
-/* Confirmation */
 .summary-box { max-width: 600px; margin: 0 auto; background: #f9fafe; padding: 32px; border-radius: 16px; }
 .info-row { display: flex; justify-content: space-between; margin-bottom: 16px; }
-.label { color: #909399; }
 .value-highlight { font-weight: 600; color: #303133; }
 .form-section { margin: 24px 0; }
 
 .action-footer { margin-top: auto; padding-top: 32px; border-top: 1px solid #ebeef5; display: flex; }
 .spacer { flex: 1; }
 
-/* Transition */
-.slide-fade-enter-active,.slide-fade-leave-active { transition: all 0.3s ease; }
+.slide-fade-enter-active, .slide-fade-leave-active { transition: all 0.3s ease; }
 .slide-fade-enter-from { opacity: 0; transform: translateX(20px); }
 .slide-fade-leave-to { opacity: 0; transform: translateX(-20px); }
 </style>

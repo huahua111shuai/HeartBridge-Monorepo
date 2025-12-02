@@ -17,6 +17,7 @@ export const changePassword = (data: PasswordUpdateReq) => {
     })
 }
 
+// 上传头像通常返回图片的 URL string
 export const uploadAvatar = (formData: FormData) => {
     return request<string>({
         url: '/common/upload',

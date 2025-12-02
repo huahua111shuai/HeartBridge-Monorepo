@@ -1,8 +1,8 @@
 import request from '@/utils/request'
-import type { ScaleDetailVO, ScaleCreateReq, AssessmentResultVO, SubmitAnswerReq } from '@/types/entity'
+import type { ScaleDetailVO, SubmitAnswerReq, AssessmentResultVO, PageResult } from '@/types/entity'
 
 export const getScaleList = (params: any) => {
-    return request<ScaleDetailVO>({
+    return request<PageResult<ScaleDetailVO>>({
         url: '/assessment/scale/list',
         method: 'get',
         params
@@ -24,7 +24,7 @@ export const submitAssessment = (data: SubmitAnswerReq) => {
     })
 }
 
-export const getAssessmentResult = (recordId: number) => {
+export const getAssessmentResult = (recordId: string | number) => {
     return request<AssessmentResultVO>({
         url: `/assessment/result/${recordId}`,
         method: 'get'

@@ -1,3 +1,15 @@
-import request from '@/utils/request'
+import { createRouter, createWebHistory } from 'vue-router'
+import { routes } from './routes'
+import { setupRouterGuard } from './guard'
 
-export default request
+const router = createRouter({
+    history: createWebHistory(),
+    routes,
+    scrollBehavior() {
+        return { top: 0 }
+    }
+})
+
+setupRouterGuard(router)
+
+export default router
